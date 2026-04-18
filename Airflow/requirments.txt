@@ -1,0 +1,5 @@
+pandas
+dotenv
+azure.identity
+azure.storage.blob
+apache-airflow
