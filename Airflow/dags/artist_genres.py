@@ -87,5 +87,5 @@ with DAG('artist_genres_dag', default_args=default_args, catchup=False) as dag:
         task_id='ingest_top_genres',
         python_callable=ingest_top_genres
     )
-
+    
     download_task >> ingest_task
