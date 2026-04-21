@@ -52,7 +52,6 @@ def download_top_tags():
 def ingest_top_genres():
 
     top_genres_local_path = os.path.join(BASE_DIR, 'artist_genres.csv')
-    top_artists_local_path = os.path.join(BASE_DIR, 'top_artists.csv')
     container_name = Variable.get('container_name')
     blob_name = 'artist_genres.csv'
     account_url = Variable.get('azure_account')
@@ -73,8 +72,7 @@ def ingest_top_genres():
         blob_client.upload_blob(data, overwrite=True)
     
     os.remove(top_genres_local_path)
-    os.remove(top_artists_local_path)
-    print(f"Deleted local file {top_genres_local_path} and {top_artists_local_path} after upload.")
+    print(f"Deleted local file {top_genres_local_path} after upload.")
 
 
 with DAG('artist_genres_dag', default_args=default_args, catchup=False) as dag:

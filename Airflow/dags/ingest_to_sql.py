@@ -66,48 +66,48 @@ def ingest_to_azure_sql_top_artists():
     conn.close()
     
 
-def ingest_to_azure_sql_top_tracks():
-    creds = json.loads(Variable.get('properties'))
-    credential = ClientSecretCredential(
-        tenant_id=creds['tenantId'],
-        client_id=creds['clientId'],
-        client_secret=creds['client_secret']
-    )
+# def ingest_to_azure_sql_top_tracks():
+#     creds = json.loads(Variable.get('properties'))
+#     credential = ClientSecretCredential(
+#         tenant_id=creds['tenantId'],
+#         client_id=creds['clientId'],
+#         client_secret=creds['client_secret']
+#     )
 
-    print("Connecting to Azure Blob Storage to download top_tracks.csv...")
-    blob_service_client = BlobServiceClient(account_url=Variable.get('azure_account'), credential=credential)
-    blob_client = blob_service_client.get_blob_client(container=Variable.get('container_name'), blob='top_tracks.csv')
+#     print("Connecting to Azure Blob Storage to download top_tracks.csv...")
+#     blob_service_client = BlobServiceClient(account_url=Variable.get('azure_account'), credential=credential)
+#     blob_client = blob_service_client.get_blob_client(container=Variable.get('container_name'), blob='top_tracks.csv')
 
-    tracks_df = blob_client.download_blob().readall()
-    tracks_df = pd.read_csv(io.BytesIO(tracks_df))
-    tracks_df['listeners'] = pd.to_numeric(tracks_df['listeners'], errors='coerce').fillna(0).astype(int)
-    tracks_df['playcount'] = pd.to_numeric(tracks_df['playcount'], errors='coerce').fillna(0).astype(int)
+#     tracks_df = blob_client.download_blob().readall()
+#     tracks_df = pd.read_csv(io.BytesIO(tracks_df))
+#     tracks_df['listeners'] = pd.to_numeric(tracks_df['listeners'], errors='coerce').fillna(0).astype(int)
+#     tracks_df['playcount'] = pd.to_numeric(tracks_df['playcount'], errors='coerce').fillna(0).astype(int)
 
-    conn = pyodbc.connect(
-        f"Driver={{ODBC Driver 18 for SQL Server}};"
-        f"Server={Variable.get('sql_server')};"
-        f"Database={Variable.get('sql_database')};"
-        f"UID={Variable.get('sql_user')};"
-        f"PWD={Variable.get('sql_password')};")
+#     conn = pyodbc.connect(
+#         f"Driver={{ODBC Driver 18 for SQL Server}};"
+#         f"Server={Variable.get('sql_server')};"
+#         f"Database={Variable.get('sql_database')};"
+#         f"UID={Variable.get('sql_user')};"
+#         f"PWD={Variable.get('sql_password')};")
     
-    cursor = conn.cursor()
-    cursor.execute("""
-        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'top_tracks')
-        CREATE TABLE top_tracks (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            name NVARCHAR(255),
-            playcount BIGINT,
-            listeners BIGINT
-        )
-    """)
-    conn.commit()
+#     cursor = conn.cursor()
+#     cursor.execute("""
+#         IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'top_tracks')
+#         CREATE TABLE top_tracks (
+#             id INT IDENTITY(1,1) PRIMARY KEY,
+#             name NVARCHAR(255),
+#             playcount BIGINT,
+#             listeners BIGINT
+#         )
+#     """)
+#     conn.commit()
 
-    for _, row in tracks_df.iterrows():
-        cursor.execute("INSERT INTO top_tracks (name, playcount, listeners) VALUES (?, ?, ?)", row['name'], row['playcount'], row['listeners'])
-    conn.commit()
-    print("Data ingestion for top_tracks completed successfully.")
-    cursor.close()
-    conn.close()
+#     for _, row in tracks_df.iterrows():
+#         cursor.execute("INSERT INTO top_tracks (name, playcount, listeners) VALUES (?, ?, ?)", row['name'], row['playcount'], row['listeners'])
+#     conn.commit()
+#     print("Data ingestion for top_tracks completed successfully.")
+#     cursor.close()
+#     conn.close()
 
 
 def ingest_to_azure_sql_artists_genres():
@@ -150,6 +150,135 @@ def ingest_to_azure_sql_artists_genres():
     cursor.close()
     conn.close()
 
+def ingest_to_azure_sql_artist_tracks():
+    creds = json.loads(Variable.get('properties'))
+    credential = ClientSecretCredential(
+        tenant_id=creds['tenantId'],
+        client_id=creds['clientId'],
+        client_secret=creds['client_secret']
+    )
+
+    print("Connecting to Azure Blob Storage... for artist_tracks.csv")
+    blob_service_client = BlobServiceClient(account_url=Variable.get('azure_account'), credential=credential)
+    blob_client = blob_service_client.get_blob_client(container=Variable.get('container_name'), blob='artist_tracks.csv')
+
+    artists_tracks_df = blob_client.download_blob().readall()
+    artists_tracks_df = pd.read_csv(io.BytesIO(artists_tracks_df))
+    
+    conn = pyodbc.connect(
+        f"Driver={{ODBC Driver 18 for SQL Server}};"
+        f"Server={Variable.get('sql_server')};"
+        f"Database={Variable.get('sql_database')};"
+        f"UID={Variable.get('sql_user')};"
+        f"PWD={Variable.get('sql_password')};")
+    
+    cursor = conn.cursor()
+    cursor.execute("""
+    IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'artist_tracks')
+    CREATE TABLE artist_tracks (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        artist NVARCHAR(255),
+        name NVARCHAR(255),
+        track_ranking INT,
+        listeners BIGINT,
+        playcount BIGINT
+    )
+""")
+    conn.commit()
+
+    for _, row in artists_tracks_df.iterrows():
+        cursor.execute(
+        "INSERT INTO artist_tracks (artist, name, track_ranking, listeners, playcount) VALUES (?, ?, ?, ?, ?)",
+        row['artist'], row['track_name'], row['track_ranking'], row['listeners'], row['playcount']
+    )   
+    conn.commit()
+
+
+def ingest_to_azure_sql_artist_albums():
+    creds = json.loads(Variable.get('properties'))
+    credential = ClientSecretCredential(
+        tenant_id=creds['tenantId'],
+        client_id=creds['clientId'],
+        client_secret=creds['client_secret']
+    )
+
+    print("Connecting to Azure Blob Storage... for artist albums.csv")
+    blob_service_client = BlobServiceClient(account_url=Variable.get('azure_account'), credential=credential)
+    blob_client = blob_service_client.get_blob_client(container=Variable.get('container_name'), blob='artist_albums.csv')
+
+    artists_albums_df = blob_client.download_blob().readall()
+    artists_albums_df = pd.read_csv(io.BytesIO(artists_albums_df))
+    
+    conn = pyodbc.connect(
+        f"Driver={{ODBC Driver 18 for SQL Server}};"
+        f"Server={Variable.get('sql_server')};"
+        f"Database={Variable.get('sql_database')};"
+        f"UID={Variable.get('sql_user')};"
+        f"PWD={Variable.get('sql_password')};")
+    
+    cursor = conn.cursor()
+    cursor.execute("""
+        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'artist_albums')
+        CREATE TABLE artist_albums (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            artist NVARCHAR(255),
+            album_name NVARCHAR(255),
+            top_album INT,
+            playcount BIGINT
+        )
+    """)
+    conn.commit()
+
+    for _, row in artists_albums_df.iterrows():
+        cursor.execute("INSERT INTO artist_albums (artist, album_name, top_album, playcount) VALUES (?, ?, ?, ?)", row['artist'], row['album_name'], row['top_album'], row['playcount'])
+    conn.commit()
+    print("Data ingestion for artist_albums completed successfully.")
+    cursor.close()
+    conn.close()
+
+def ingest_to_azure_sql_geo_artists():
+    creds = json.loads(Variable.get('properties'))
+    credential = ClientSecretCredential(
+        tenant_id=creds['tenantId'],
+        client_id=creds['clientId'],
+        client_secret=creds['client_secret']
+    )
+
+    print("Connecting to Azure Blob Storage... for geo artists.csv")
+    blob_service_client = BlobServiceClient(account_url=Variable.get('azure_account'), credential=credential)
+    blob_client = blob_service_client.get_blob_client(container=Variable.get('container_name'), blob='geo_top_artists.csv')
+
+    artists_albums_df = blob_client.download_blob().readall()
+    artists_albums_df = pd.read_csv(io.BytesIO(artists_albums_df))
+    
+    conn = pyodbc.connect(
+        f"Driver={{ODBC Driver 18 for SQL Server}};"
+        f"Server={Variable.get('sql_server')};"
+        f"Database={Variable.get('sql_database')};"
+        f"UID={Variable.get('sql_user')};"
+        f"PWD={Variable.get('sql_password')};")
+    
+    cursor = conn.cursor()
+    cursor.execute("""
+        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'geo_top_artists')
+        CREATE TABLE geo_top_artists (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            country NVARCHAR(100),
+            rank int,
+            artist nvarchar(255),
+            listeners BIGINT
+        )
+    """)
+    conn.commit()
+
+    for _, row in artists_albums_df.iterrows():
+        cursor.execute("INSERT INTO geo_top_artists (country, rank, artist, listeners) VALUES (?, ?, ?, ?)", row['country'], row['rank'], row['artist'], row['listeners'])
+    conn.commit()
+    print("Data ingestion for geo_top_artists completed successfully.")
+    cursor.close()
+    conn.close()
+
+
 
 with DAG('ingest_to_sql_dag', default_args=default_args, catchup=False) as dag:
     ingest_top_artists_task = PythonOperator(
@@ -157,14 +286,24 @@ with DAG('ingest_to_sql_dag', default_args=default_args, catchup=False) as dag:
         python_callable=ingest_to_azure_sql_top_artists
     )
 
-    ingest_top_tracks_task = PythonOperator(
-        task_id='ingest_top_tracks',
-        python_callable=ingest_to_azure_sql_top_tracks
-    )
-
     ingest_artist_genres_task = PythonOperator(
         task_id='ingest_artist_genres',
         python_callable=ingest_to_azure_sql_artists_genres
     )
 
-    ingest_top_artists_task >> ingest_top_tracks_task >> ingest_artist_genres_task
+    ingest_artist_tracks_task = PythonOperator(
+        task_id='ingest_artist_tracks',
+        python_callable=ingest_to_azure_sql_artist_tracks
+    )
+    ingest_artist_albums_task = PythonOperator(
+        task_id='ingest_artist_albums',
+        python_callable=ingest_to_azure_sql_artist_albums
+    )
+
+    ingest_geo_top_artist_task = PythonOperator(
+        task_id = 'ingest_geo_top_artist_task',
+        python_callable=ingest_to_azure_sql_geo_artists
+
+    )
+
+    ingest_top_artists_task >> ingest_artist_genres_task >> ingest_artist_tracks_task >> ingest_artist_albums_task >> ingest_geo_top_artist_task
