@@ -5,6 +5,7 @@ from azure.identity import ClientSecretCredential
 from azure.storage.blob import BlobServiceClient
 import json
 from airflow import DAG
+import time
 from airflow.sdk import Variable
 from airflow.providers.standard.operators.python import PythonOperator
 
@@ -36,7 +37,7 @@ def download_geo_top_artists():
             'country': country,
             'api_key': lastfm_api_key,
             'format': 'json',
-            'limit': 100
+            'limit': 1000
         }
 
         response = requests.get(url, params=params)
@@ -56,6 +57,7 @@ def download_geo_top_artists():
                 'listeners': artist['listeners']
             })
             print(f"Country: {country}, Rank: {artist['@attr']['rank']}, Artist: {artist['name']}")
+            time.sleep(.2)
 
     geo_df = pd.DataFrame(results)
     geo_df.to_csv(os.path.join(BASE_DIR, 'geo_top_artists.csv'), index=False)

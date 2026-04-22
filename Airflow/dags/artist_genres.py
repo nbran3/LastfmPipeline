@@ -4,6 +4,7 @@ import pandas as pd
 from azure.identity import ClientSecretCredential
 from azure.storage.blob import BlobServiceClient
 import json
+import time
 from airflow import DAG
 from airflow.sdk import Variable
 from airflow.providers.standard.operators.python import PythonOperator
@@ -45,6 +46,7 @@ def download_top_tags():
         
         print(f"Artist: {artist}, Top Genre: {top_tag}")
         results.append({'artist': artist, 'genre': top_tag})
+        time.sleep(.2)
 
     genre_df = pd.DataFrame(results)
     genre_df.to_csv(os.path.join(BASE_DIR, 'artist_genres.csv'), index=False)

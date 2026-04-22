@@ -1,5 +1,6 @@
 from airflow import DAG
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from datetime import datetime
 
 with DAG('controller_dag', start_date=datetime(2026, 1, 1), catchup=False) as dag:
@@ -45,4 +46,11 @@ with DAG('controller_dag', start_date=datetime(2026, 1, 1), catchup=False) as da
         poke_interval=30
     )
 
-    trigger_top_artists >>  trigger_artist_genres >> trigger_artist_tracks >> trigger_artist_albums >> trigger_geo_artists >> trigger_ingest_to_sql
+    trigger_sqlmesh = TriggerDagRunOperator(
+    task_id='run_sqlmesh',
+    trigger_dag_id='sqlmesh_dag',
+    wait_for_completion=True,
+    poke_interval=30
+)
+
+    trigger_top_artists >>  trigger_artist_genres >> trigger_artist_tracks >> trigger_artist_albums >> trigger_geo_artists >> trigger_ingest_to_sql >> trigger_sqlmesh

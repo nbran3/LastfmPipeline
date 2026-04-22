@@ -18,9 +18,8 @@ BASE_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
 def download_top_artists():
     lastfm_api_key = Variable.get('lastapi')
-
     print("Calling LAST.FM API to get top artists...")
-    artists_url = f'https://ws.audioscrobbler.com/2.0/?method=chart.gettopartists&api_key={lastfm_api_key}&format=json&limit=100'
+    artists_url = f'https://ws.audioscrobbler.com/2.0/?method=chart.gettopartists&api_key={lastfm_api_key}&format=json&limit=1000'
 
     response = requests.get(artists_url)
     data = response.json()
