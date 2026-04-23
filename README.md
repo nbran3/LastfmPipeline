@@ -1,9 +1,7 @@
-# !!Currently Working on LLM intergration!! check - `main.py` in root directory 
-
-
 # Last.fm Data Pipeline
+This project builds an end-to-end music analytics pipeline using the Last.fm API, Apache Airflow, Azure Blob Storage, Azure SQL, and SQLMesh. It includes a natural language query interface powered by the Claude API that lets you ask plain English questions about the data.
 
-This project builds an end-to-end music analytics pipeline using the Last.fm API, Apache Airflow, Azure Blob Storage, Azure SQL, and SQLMesh.
+Data infrastructure and query API built by me. Frontend built by Claude Code.
 
 The pipeline:
 
@@ -12,6 +10,7 @@ The pipeline:
 3. Uploads those files to Azure Blob Storage.
 4. Loads the raw data into Azure SQL tables.
 5. Builds curated gold-layer models with SQLMesh.
+6. Exposes the data through a Claude-powered natural language query interface.
 
 ## Architecture
 
@@ -58,11 +57,8 @@ The project is organized as a small ELT workflow:
 ├── sqlmesh/
 │   ├── config.yaml
 │   └── models/
-├── top_artists.csv
-├── artist_genres.csv
-├── artist_tracks.csv
-├── artist_albums.csv
-└── testing.ipynb
+├── main.py
+├── index.html
 ```
 
 ## SQLMesh Models
@@ -87,7 +83,7 @@ You will need:
 - Access to the Last.fm API
 - An Azure Blob Storage account/container
 - An Azure SQL Database
-- ODBC Driver 18 for SQL Server if you run ingestion locally outside Docker
+- An Anthropic API key
 
 Python dependencies are listed in `Airflow/requirments.txt`:
 
@@ -95,10 +91,18 @@ Python dependencies are listed in `Airflow/requirments.txt`:
 - `azure.identity`
 - `azure.storage.blob`
 - `apache-airflow`
-- `pyodbc`
+- `mssql-python`
 - `sqlmesh`
 - `sqlmesh[azuresql]`
 - `sqlmesh[airflow]`
+
+Additional dependencies for the query API (`main.py`):
+
+- `fastapi`
+- `uvicorn`
+- `anthropic`
+- `mssql-python`
+- `python-dotenv`
 
 ## Configuration
 
@@ -134,6 +138,26 @@ Create these Airflow Variables before running the DAGs:
 
 Update `sqlmesh/config.yaml` with your Azure SQL connection details and preferred gateway settings before running SQLMesh.
 
+### Query API
+
+Create a `.env` file in the project root with the following variables:
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
+AZURE_SQL_CONNECTIONSTRING="Driver={ODBC Driver 18 for SQL Server};Server=...;Database=...;Uid=...;Pwd=...;"
+TABLE_TOP_ARTISTS=dbo.dbo__gold_top_artists__...
+TABLE_TOP_TRACKS=dbo.dbo__gold_top_tracks__...
+TABLE_TOP_ALBUMS=dbo.dbo__gold_top_albums__...
+TABLE_GEO_ARTISTS=dbo.dbo__geo_artists__...
+```
+
+Table names with their SQLMesh version hashes can be found by running:
+
+```sql
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE '%gold%' OR TABLE_NAME LIKE '%geo%'
+```
+
 ## Running The Project
 
 ### Option 1: Run with Airflow in Docker
@@ -162,6 +186,29 @@ pip install -r Airflow/requirments.txt
 ```
 
 This is useful for development, debugging, or working with SQLMesh outside the Airflow containers.
+
+### Option 3: Run the query API
+
+From the project root:
+
+```bash
+uvicorn main:app --reload
+```
+
+Then open `index.html` in your browser. Type a plain English question about the music data and the API will generate SQL, query Azure SQL, and return a natural language response.
+
+Example queries:
+- "Give me a top rock songs playlist"
+
+![Example of Generated Rock Playlist](pictures/rockplaylist.png)
+
+- "Top pop songs in the US"
+
+![Example of Top Pop Songs in the US](pictures/topopus.png)
+
+- "What are the most played hip-hop albums?"
+
+![Example of Most Played hip-hop albums](pictures/mostplayedhiphopalbums.png)
 
 ## Outputs
 
