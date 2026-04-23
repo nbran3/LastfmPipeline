@@ -1,3 +1,6 @@
+# !!Currently Working on LLM intergration!! check - `main.py` in root directory 
+
+
 # Last.fm Data Pipeline
 
 This project builds an end-to-end music analytics pipeline using the Last.fm API, Apache Airflow, Azure Blob Storage, Azure SQL, and SQLMesh.

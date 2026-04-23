@@ -6,7 +6,9 @@ import json
 from airflow import DAG
 from airflow.sdk import Variable
 from airflow.providers.standard.operators.python import PythonOperator
-import pyodbc
+from mssql_python import connect
+import os
+
 
 default_args = {
     'start_date': '2026-01-01',
@@ -32,15 +34,11 @@ def ingest_to_azure_sql_top_artists():
 
     artists_df['listeners'] = pd.to_numeric(artists_df['listeners'], errors='coerce').fillna(0).astype(int)
     artists_df['playcount'] = pd.to_numeric(artists_df['playcount'], errors='coerce').fillna(0).astype(int)
+    artists_df = artists_df.where(pd.notnull(artists_df), None)
 
-    print("Connecting to Azure SQL Database...")
-    
-    conn = pyodbc.connect(
-        f"Driver={{ODBC Driver 18 for SQL Server}};"
-        f"Server={Variable.get('sql_server')};"
-        f"Database={Variable.get('sql_database')};"
-        f"UID={Variable.get('sql_user')};"
-        f"PWD={Variable.get('sql_password')};")
+    connection_string = os.getenv('AZURE_SQL_CONNECTIONSTRING')
+    conn = connect(connection_string)
+
     
     print("Creating top_artists table if it doesn't exist...")
     
@@ -124,13 +122,10 @@ def ingest_to_azure_sql_artists_genres():
 
     artists_genres_df = blob_client.download_blob().readall()
     artists_genres_df = pd.read_csv(io.BytesIO(artists_genres_df))
+    artists_genres_df = artists_genres_df.where(pd.notnull(artists_genres_df), None)
     
-    conn = pyodbc.connect(
-        f"Driver={{ODBC Driver 18 for SQL Server}};"
-        f"Server={Variable.get('sql_server')};"
-        f"Database={Variable.get('sql_database')};"
-        f"UID={Variable.get('sql_user')};"
-        f"PWD={Variable.get('sql_password')};")
+    connection_string = os.getenv('AZURE_SQL_CONNECTIONSTRING')
+    conn = connect(connection_string)
     
     cursor = conn.cursor()
     cursor.execute("""
@@ -138,7 +133,7 @@ def ingest_to_azure_sql_artists_genres():
         CREATE TABLE artist_genres (
             id INT IDENTITY(1,1) PRIMARY KEY,
             artist NVARCHAR(255),
-            genre NVARCHAR(255)
+            genre NVARCHAR(255) NULL
         )
     """)
     conn.commit()
@@ -164,13 +159,10 @@ def ingest_to_azure_sql_artist_tracks():
 
     artists_tracks_df = blob_client.download_blob().readall()
     artists_tracks_df = pd.read_csv(io.BytesIO(artists_tracks_df))
-    
-    conn = pyodbc.connect(
-        f"Driver={{ODBC Driver 18 for SQL Server}};"
-        f"Server={Variable.get('sql_server')};"
-        f"Database={Variable.get('sql_database')};"
-        f"UID={Variable.get('sql_user')};"
-        f"PWD={Variable.get('sql_password')};")
+    artists_tracks_df = artists_tracks_df.where(pd.notnull(artists_tracks_df), None)
+
+    connection_string = os.getenv('AZURE_SQL_CONNECTIONSTRING')
+    conn = connect(connection_string)
     
     cursor = conn.cursor()
     cursor.execute("""
@@ -179,9 +171,9 @@ def ingest_to_azure_sql_artist_tracks():
         id INT IDENTITY(1,1) PRIMARY KEY,
         artist NVARCHAR(255),
         name NVARCHAR(255),
-        track_ranking INT,
-        listeners BIGINT,
-        playcount BIGINT
+        track_ranking INT NULL,
+        listeners BIGINT NULL,
+        playcount BIGINT NULL
     )
 """)
     conn.commit()
@@ -208,13 +200,10 @@ def ingest_to_azure_sql_artist_albums():
 
     artists_albums_df = blob_client.download_blob().readall()
     artists_albums_df = pd.read_csv(io.BytesIO(artists_albums_df))
+    artists_albums_df = artists_albums_df.where(pd.notnull(artists_albums_df), None)
     
-    conn = pyodbc.connect(
-        f"Driver={{ODBC Driver 18 for SQL Server}};"
-        f"Server={Variable.get('sql_server')};"
-        f"Database={Variable.get('sql_database')};"
-        f"UID={Variable.get('sql_user')};"
-        f"PWD={Variable.get('sql_password')};")
+    connection_string = os.getenv('AZURE_SQL_CONNECTIONSTRING')
+    conn = connect(connection_string)
     
     cursor = conn.cursor()
     cursor.execute("""
@@ -222,9 +211,9 @@ def ingest_to_azure_sql_artist_albums():
         CREATE TABLE artist_albums (
             id INT IDENTITY(1,1) PRIMARY KEY,
             artist NVARCHAR(255),
-            album_name NVARCHAR(255),
-            top_album INT,
-            playcount BIGINT
+            album_name NVARCHAR(255) NULL,
+            top_album INT NULL,
+            playcount BIGINT NULL
         )
     """)
     conn.commit()
@@ -248,15 +237,12 @@ def ingest_to_azure_sql_geo_artists():
     blob_service_client = BlobServiceClient(account_url=Variable.get('azure_account'), credential=credential)
     blob_client = blob_service_client.get_blob_client(container=Variable.get('container_name'), blob='geo_top_artists.csv')
 
-    artists_albums_df = blob_client.download_blob().readall()
-    artists_albums_df = pd.read_csv(io.BytesIO(artists_albums_df))
+    artists_geo_df = blob_client.download_blob().readall()
+    artists_geo_df = pd.read_csv(io.BytesIO(artists_geo_df))
+    artists_geo_df = artists_geo_df.where(pd.notnull(artists_geo_df), None)
     
-    conn = pyodbc.connect(
-        f"Driver={{ODBC Driver 18 for SQL Server}};"
-        f"Server={Variable.get('sql_server')};"
-        f"Database={Variable.get('sql_database')};"
-        f"UID={Variable.get('sql_user')};"
-        f"PWD={Variable.get('sql_password')};")
+    connection_string = os.getenv('AZURE_SQL_CONNECTIONSTRING')
+    conn = connect(connection_string)
     
     cursor = conn.cursor()
     cursor.execute("""
@@ -264,14 +250,14 @@ def ingest_to_azure_sql_geo_artists():
         CREATE TABLE geo_top_artists (
             id INT IDENTITY(1,1) PRIMARY KEY,
             country NVARCHAR(100),
-            rank int,
-            artist nvarchar(255),
-            listeners BIGINT
+            rank int NULL,
+            artist nvarchar(255) NULL,
+            listeners BIGINT NULL
         )
     """)
     conn.commit()
 
-    for _, row in artists_albums_df.iterrows():
+    for _, row in artists_geo_df.iterrows():
         cursor.execute("INSERT INTO geo_top_artists (country, rank, artist, listeners) VALUES (?, ?, ?, ?)", row['country'], row['rank'], row['artist'], row['listeners'])
     conn.commit()
     print("Data ingestion for geo_top_artists completed successfully.")
